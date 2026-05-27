@@ -17,9 +17,9 @@
 # Word-list files:
 #	- fileorg-word-list*.txt
 #	- The menu can create fileorg-word-list-<name>.txt from comma-separated
-#	  search terms, then immediately generate its matching file.
+#	  search terms.
 #	- Existing word lists are selected with selector-interactive.sh before
-#	  generating a matching file.
+#	  generating or reviewing a matching file.
 #
 # Generated output files:
 #	- fileorg-matching-files.txt
@@ -32,8 +32,8 @@
 #	1. Create a new word list from scratch or maintain fileorg-word-list*.txt
 #	   files with one search string per line
 #	2. View or edit existing word lists selected with selector-interactive.sh
-#	3. Generate a suffix-aware fileorg-matching-files*.txt list from the new
-#	   word list or from an existing word list selected with selector-interactive.sh
+#	3. Generate a suffix-aware fileorg-matching-files*.txt list from an
+#	   existing word list selected with selector-interactive.sh
 #	4. Match files in the current directory using the selected word list
 #	5. For this first version, order generated matches by macOS Date Added when
 #	   available, falling back to file birth time or filename
@@ -536,7 +536,7 @@ main() {
 				return
 				;;
 		1)
-			create_and_build_list
+			create_word_list
 			case $? in
 				0)
 					continue

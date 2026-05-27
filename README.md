@@ -2,7 +2,7 @@
 
 `fileorg` is a small shell tool for organizing files in the current working directory by keyword or filename pattern.
 
-It builds a reviewed list of matching files from a word-list file, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
+It creates word-list files, builds a reviewed list of matching files from a selected word list, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
 
 ## Files
 
@@ -46,7 +46,7 @@ You can also run specific modes directly:
 
    Choose `Start a new word list from scratch` from the main menu. Enter a suffix such as `images`, then enter comma-separated search terms such as `.jpg, .png, .heic`.
 
-   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line, and immediately generates a matching-files list from it.
+   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line. After that, return to the main menu and use the view, edit, or build options when you are ready.
 
 2. View or edit an existing word list.
 
