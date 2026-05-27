@@ -570,7 +570,14 @@ main() {
 				;;
 			4)
 				build_list_from_existing_word_list
-				return
+				case $? in
+					0)
+						continue
+						;;
+					*)
+						return $?
+						;;
+				esac
 				;;
 			5)
 				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
