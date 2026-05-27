@@ -1,0 +1,15 @@
+.DS_Store
+
+# Local editor and temporary files
+*.swp
+*.swo
+*~
+
+# Generated matching-files lists are local working artifacts.
+fileorg-matching-files*.txt
+!fileorg-matching-files.txt
+
+# Personal word lists are local working artifacts.
+fileorg-word-list*.txt
+!fileorg-word-list-images-extensions.txt
+!fileorg-word-list-movies-extensions.txt

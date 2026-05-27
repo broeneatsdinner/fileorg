@@ -1,0 +1,2 @@
+file1.jpg
+file2.jpeg

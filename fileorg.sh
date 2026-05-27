@@ -1,0 +1,603 @@
+#!/usr/bin/env zsh
+# -------------------
+# --    fileorg    --
+# -------------------
+
+# description: Build file match lists and organize files into a new folder.
+
+# fileorg.sh
+#
+# Run this from the directory you want to work on, for example:
+#	cd ~/Downloads
+#	fileorg
+#
+# This script operates on the current working directory, not the script's
+# own install location.
+#
+# Word-list files:
+#	- fileorg-word-list*.txt
+#	- The menu can create fileorg-word-list-<name>.txt from comma-separated
+#	  search terms, then immediately generate its matching file.
+#	- Existing word lists are selected with selector-interactive.sh before
+#	  generating a matching file.
+#
+# Generated output files:
+#	- fileorg-matching-files.txt
+#	- fileorg-matching-files-<word-list-suffix>.txt
+#	- If the generated name already exists, the script preserves existing files
+#	  by creating fileorg-matching-files-<suffix>-2.txt,
+#	  fileorg-matching-files-<suffix>-3.txt, etc.
+#
+# Workflow:
+#	1. Create a new word list from scratch or maintain fileorg-word-list*.txt
+#	   files with one search string per line
+#	2. View or edit existing word lists selected with selector-interactive.sh
+#	3. Generate a suffix-aware fileorg-matching-files*.txt list from the new
+#	   word list or from an existing word list selected with selector-interactive.sh
+#	4. Match files in the current directory using the selected word list
+#	5. For this first version, order generated matches by macOS Date Added when
+#	   available, falling back to file birth time or filename
+#	6. Manually review/edit the generated matching file
+#	7. Run the organizer against a selector-chosen matching file
+#
+# Organizer safety behavior:
+#	- Organizer mode defaults to a dry run.
+#	- In dry-run mode, the script only prints what it would do.
+#	- No files are moved unless you explicitly choose force mode.
+#	- Blank lines in word-list files are ignored.
+#	- Blank lines in the matching file are ignored.
+#	- Lines in the matching file that do not point to a valid regular file are ignored.
+#	- The destination subdirectory must not already exist.
+#	- The destination subdirectory is created under the current working directory.
+
+setopt local_options no_nomatch
+
+SCRIPT_DIR="${0:A:h}"
+SELECTOR_FILE="${SCRIPT_DIR}/selector-interactive.sh"
+WORD_LIST_BASE="fileorg-word-list"
+MATCH_FILE_BASE="fileorg-matching-files"
+MATCH_FILE_EXT=".txt"
+
+if [[ ! -f "$SELECTOR_FILE" ]]; then
+	printf 'Error: selector-interactive.sh not found next to fileorg.sh: %s\n' "$SELECTOR_FILE" >&2
+	exit 1
+fi
+
+source "$SELECTOR_FILE"
+
+handle_interrupt() {
+	printf '\nCancelled.\n' >&2
+	exit 130
+}
+
+install_interrupt_trap() {
+	trap handle_interrupt INT
+}
+
+is_cancel_choice() {
+	[[ "$1" == "q" || "$1" == "Q" || "$1" == $'\e' ]]
+}
+
+show_usage() {
+	cat << EOF
+Usage:
+	fileorg
+	fileorg --view-list
+	fileorg --edit-list
+	fileorg --build-list
+	fileorg --organize
+	fileorg --organize --force
+	fileorg --dry-run
+	fileorg -h
+	fileorg --help
+EOF
+}
+
+next_numbered_file() {
+	local base="$1"
+	local n=1
+	local candidate
+
+	candidate="${base}${MATCH_FILE_EXT}"
+	if [[ ! -e "$candidate" ]]; then
+		printf '%s\n' "$candidate"
+		return
+	fi
+
+	n=2
+	while true; do
+		candidate="${base}-${n}${MATCH_FILE_EXT}"
+		if [[ ! -e "$candidate" ]]; then
+			printf '%s\n' "$candidate"
+			return
+		fi
+		((n++))
+	done
+}
+
+word_list_suffix() {
+	local word_list_file="$1"
+	local suffix
+
+	suffix="${word_list_file#${WORD_LIST_BASE}}"
+	suffix="${suffix%.txt}"
+	suffix="${suffix#-}"
+
+	printf '%s\n' "$suffix"
+}
+
+match_file_base_for_word_list() {
+	local word_list_file="$1"
+	local suffix
+
+	suffix="$(word_list_suffix "$word_list_file")"
+	if [[ -n "$suffix" ]]; then
+		printf '%s-%s\n' "$MATCH_FILE_BASE" "$suffix"
+	else
+		printf '%s\n' "$MATCH_FILE_BASE"
+	fi
+}
+
+next_match_file() {
+	local word_list_file="$1"
+	local match_file_base
+
+	match_file_base="$(match_file_base_for_word_list "$word_list_file")"
+	next_numbered_file "$match_file_base"
+}
+
+select_from_files() {
+	local prompt="$1"
+	shift
+
+	printf '%s\n\n' "$prompt" >&2
+	keyboard_select "$@" || {
+		install_interrupt_trap
+		printf 'Cancelled.\n' >&2
+		return 130
+	}
+	install_interrupt_trap
+	printf '%s\n' "$keyboard_select_response"
+}
+
+create_word_list() {
+	local suffix
+	local terms_line
+	local word_list_file
+	local term
+	local terms
+
+	while true; do
+		printf 'Enter word-list name suffix: ' >&2
+		read -r suffix
+
+		if is_cancel_choice "$suffix"; then
+			printf 'Cancelled.\n' >&2
+			return 130
+		fi
+
+		if [[ -z "$suffix" ]]; then
+			printf 'Word-list suffix cannot be blank.\n' >&2
+			continue
+		fi
+
+		if [[ "$suffix" == *[!A-Za-z0-9_-]* ]]; then
+			printf 'Use only letters, numbers, underscores, and hyphens.\n' >&2
+			continue
+		fi
+
+		word_list_file="${WORD_LIST_BASE}-${suffix}.txt"
+		if [[ -e "$word_list_file" ]]; then
+			printf 'That word-list file already exists: %s\n' "$word_list_file" >&2
+			continue
+		fi
+
+		break
+	done
+
+	while true; do
+		printf 'Enter comma-separated search terms: ' >&2
+		read -r terms_line
+
+		if is_cancel_choice "$terms_line"; then
+			printf 'Cancelled.\n' >&2
+			return 130
+		fi
+
+		terms=()
+		for term in "${(@s:,:)terms_line}"; do
+			term="${term#"${term%%[![:space:]]*}"}"
+			term="${term%"${term##*[![:space:]]}"}"
+			[[ -z "$term" ]] && continue
+			terms+=("$term")
+		done
+
+		if (( ${#terms[@]} == 0 )); then
+			printf 'At least one search term is required.\n' >&2
+			continue
+		fi
+
+		break
+	done
+
+	printf '%s\n' "${terms[@]}" > "$word_list_file" || return 1
+	printf 'Created word-list file: %s\n' "$word_list_file" >&2
+	printf '%s\n' "$word_list_file"
+}
+
+select_existing_word_list() {
+	local word_list_files
+
+	word_list_files=(${WORD_LIST_BASE}*.txt(N.))
+
+	if (( ${#word_list_files[@]} == 0 )); then
+		printf 'No %s*.txt files found in current directory: %s\n' "$WORD_LIST_BASE" "$PWD" >&2
+		printf 'Use option 1 to create a new word list first.\n' >&2
+		return 1
+	fi
+
+	select_from_files "Choose word list to use:" "${word_list_files[@]}"
+}
+
+select_match_file() {
+	local match_files
+
+	match_files=(${MATCH_FILE_BASE}*.txt(N.))
+
+	if (( ${#match_files[@]} == 0 )); then
+		printf 'Error: no %s*.txt file found in current directory: %s\n' "$MATCH_FILE_BASE" "$PWD" >&2
+		return 1
+	fi
+
+	select_from_files "Choose matching file to organize:" "${match_files[@]}"
+}
+
+date_added_sort_key() {
+	local file="$1"
+	local date_added
+	local birth_time
+
+	if command -v mdls >/dev/null 2>&1; then
+		date_added="$(mdls -raw -name kMDItemDateAdded -- "$file" 2>/dev/null)"
+		if [[ -n "$date_added" && "$date_added" != "(null)" && "$date_added" != "null" ]]; then
+			printf '0:%s\n' "$date_added"
+			return
+		fi
+	fi
+
+	if birth_time="$(stat -f '%B' -- "$file" 2>/dev/null)" && [[ "$birth_time" != "0" && "$birth_time" != "-1" ]]; then
+		printf '1:%s\n' "$birth_time"
+		return
+	fi
+
+	printf '2:%s\n' "$file"
+}
+
+print_date_added_ordered_files() {
+	local file
+	local sort_key
+
+	for file in "$@"; do
+		sort_key="$(date_added_sort_key "$file")"
+		printf '%s\t%s\n' "$sort_key" "$file"
+	done | sort -t '	' -k1,1 -k2,2 | cut -f2-
+}
+
+build_list() {
+	local out_file
+	local word_list_file="$1"
+	local clean_word_list
+	local files
+	local matched_files
+
+	if [[ ! -f "$word_list_file" ]]; then
+		printf 'Error: selected word-list file not found: %s\n' "$word_list_file" >&2
+		return 1
+	fi
+
+	out_file="$(next_match_file "$word_list_file")"
+	clean_word_list="$(mktemp -t fileorg-word-list.XXXXXX)" || return 1
+	grep -v '^[[:space:]]*$' "$word_list_file" > "$clean_word_list"
+
+	printf 'Using word-list file: %s\n' "$word_list_file"
+	printf 'Generating %s in: %s\n' "$out_file" "$PWD"
+
+	files=(*(.N))
+	if (( ${#files[@]} == 0 )); then
+		: > "$out_file"
+	else
+		matched_files=("${(@f)$(printf '%s\n' "${files[@]}" | grep -iFf "$clean_word_list")}")
+		if (( ${#matched_files[@]} == 1 )) && [[ -z "${matched_files[1]}" ]]; then
+			matched_files=()
+		fi
+		print_date_added_ordered_files "${matched_files[@]}" > "$out_file"
+	fi
+
+	rm -f -- "$clean_word_list"
+
+	printf 'Done. Review/edit %s before organizing files.\n' "$out_file"
+}
+
+create_and_build_list() {
+	local word_list_file
+
+	word_list_file="$(create_word_list)" || return $?
+	build_list "$word_list_file"
+}
+
+build_list_from_existing_word_list() {
+	local word_list_file
+
+	word_list_file="$(select_existing_word_list)" || return $?
+	build_list "$word_list_file"
+}
+
+print_word_list() {
+	local word_list_file="$1"
+
+	printf 'Word-list file: %s\n' "$word_list_file"
+	awk '{ printf "%6d  %s\n", NR, $0 }' "$word_list_file"
+}
+
+view_existing_word_list() {
+	local word_list_file
+
+	word_list_file="$(select_existing_word_list)" || return $?
+	print_word_list "$word_list_file"
+}
+
+edit_existing_word_list() {
+	local word_list_file
+	local editor
+	local -a editor_cmd
+
+	word_list_file="$(select_existing_word_list)" || return $?
+	editor="${VISUAL:-${EDITOR:-/usr/bin/nano}}"
+	editor_cmd=("${(@z)editor}")
+
+	printf 'Editing word-list file: %s\n' "$word_list_file"
+	"${editor_cmd[@]}" "$word_list_file" || return $?
+	print_word_list "$word_list_file"
+}
+
+prompt_for_destination_dir() {
+	local dest_dir
+
+	while true; do
+		printf 'Enter destination subdirectory name to create under %s: ' "$PWD" >&2
+		read -r dest_dir
+
+		if is_cancel_choice "$dest_dir"; then
+			printf 'Cancelled.\n' >&2
+			return 130
+		fi
+
+		if [[ -z "$dest_dir" ]]; then
+			printf 'Destination name cannot be blank.\n' >&2
+			continue
+		fi
+
+		if [[ "$dest_dir" == "." || "$dest_dir" == ".." ]]; then
+			printf 'Please choose a real subdirectory name.\n' >&2
+			continue
+		fi
+
+		if [[ "$dest_dir" == /* ]]; then
+			printf 'Please enter a relative subdirectory name, not an absolute path.\n' >&2
+			continue
+		fi
+
+		if [[ -e "$dest_dir" ]]; then
+			printf 'That path already exists: %s\n' "$dest_dir" >&2
+			printf 'Choose another destination name.\n' >&2
+			continue
+		fi
+
+		printf '%s\n' "$dest_dir"
+		return
+	done
+}
+
+organize_files() {
+	local force="$1"
+	local match_file
+	local file
+	local dest_dir
+	local target_path
+
+	match_file="$(select_match_file)" || return $?
+	printf 'Using matching file: %s\n' "$match_file"
+
+	dest_dir="$(prompt_for_destination_dir)" || return $?
+
+	if (( ! force )); then
+		printf 'Running in dry-run mode against: %s\n' "$match_file"
+		printf 'Would create destination directory: %s\n' "$dest_dir"
+	else
+		mkdir -p -- "$dest_dir" || return 1
+		[[ -d "$dest_dir" ]] || return 1
+		printf 'Created destination directory: %s\n' "$dest_dir"
+	fi
+
+	while IFS= read -r file; do
+		[[ -z "$file" ]] && continue
+		[[ ! -f "$file" ]] && continue
+
+		target_path="${dest_dir}/${file:t}"
+
+		if [[ -e "$target_path" ]]; then
+			if (( ! force )); then
+				printf 'Would skip (target exists): %s -> %s\n' "$file" "$target_path"
+			else
+				printf 'Skipping (target exists): %s -> %s\n' "$file" "$target_path"
+			fi
+			continue
+		fi
+
+		if (( ! force )); then
+			printf 'Would move: %s -> %s/\n' "$file" "$dest_dir"
+			continue
+		fi
+
+		mv -- "$file" "$dest_dir/" || return 1
+		printf 'Moved: %s -> %s/\n' "$file" "$dest_dir"
+
+	done < "$match_file"
+}
+
+show_menu() {
+	local word_list_files
+	local word_list_file
+	local word_list_count
+
+	word_list_files=(${WORD_LIST_BASE}*.txt(N.))
+	word_list_count=${#word_list_files[@]}
+
+	printf '\n'
+	printf 'fileorg - current directory: %s\n' "$PWD"
+	printf '\n'
+	printf '1) Start a new word list from scratch\n'
+	printf '2) View an existing word list\n'
+	printf '3) Edit an existing word list\n'
+	printf '4) Generate a new %s*.txt from an existing word list\n' "$MATCH_FILE_BASE"
+	if (( word_list_count == 1 )); then
+		printf '     1 word list found:\n'
+	elif (( word_list_count == 0 )); then
+		printf '     0 word lists found:\n'
+	else
+		printf '     %d word lists found:\n' "$word_list_count"
+	fi
+	if (( word_list_count == 0 )); then
+		printf '       [none]\n'
+	else
+		for word_list_file in "${word_list_files[@]}"; do
+			printf '       %s\n' "$word_list_file"
+		done
+	fi
+	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$MATCH_FILE_BASE"
+	printf '6) Quit\n'
+	printf '\n'
+	printf 'Choose an option: '
+}
+
+main() {
+	local arg1="${1:-}"
+	local arg2="${2:-}"
+	local choice
+	local force=0
+
+	install_interrupt_trap
+
+	case "$arg1" in
+		--view-list)
+			view_existing_word_list
+			return
+			;;
+		--edit-list)
+			edit_existing_word_list
+			return
+			;;
+		--build-list)
+			build_list_from_existing_word_list
+			return
+			;;
+		--organize)
+			if [[ "$arg2" == "--force" ]]; then
+				organize_files 1
+				return
+			else
+				organize_files 0
+				return
+			fi
+			;;
+		--dry-run)
+			organize_files 0
+			return
+			;;
+		-h|--help)
+			show_usage
+			return
+			;;
+		'')
+			;;
+		*)
+			show_usage >&2
+			return 1
+			;;
+	esac
+
+	while true; do
+		show_menu
+		read -r choice
+
+		case "$choice" in
+			q|Q|$'\e')
+				printf 'Exiting.\n'
+				return
+				;;
+			1)
+				create_and_build_list
+				return
+				;;
+			2)
+				view_existing_word_list
+				case $? in
+					0)
+						;;
+					*)
+						return $?
+						;;
+				esac
+				continue
+				;;
+			3)
+				edit_existing_word_list
+				case $? in
+					0)
+						;;
+					*)
+						return $?
+						;;
+				esac
+				continue
+				;;
+			4)
+				build_list_from_existing_word_list
+				return
+				;;
+			5)
+				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
+				read -r choice
+
+				case "$choice" in
+					q|Q|$'\e')
+						printf 'Cancelled.\n' >&2
+						return 130
+						;;
+					force)
+						force=1
+						;;
+					dry-run|'')
+						force=0
+						;;
+					*)
+						printf 'Invalid choice.\n' >&2
+						return 1
+						;;
+				esac
+
+				organize_files "$force"
+				return
+				;;
+			6)
+				printf 'Exiting.\n'
+				return
+				;;
+			*)
+				printf 'Invalid choice.\n'
+				;;
+		esac
+	done
+}
+
+main "$@"

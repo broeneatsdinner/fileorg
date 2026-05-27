@@ -1,0 +1,9 @@
+.jpg
+.jpeg
+.png
+.gif
+.webp
+.heic
+.tif
+.tiff
+.bmp
