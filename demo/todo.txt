@@ -1,0 +1,2 @@
+Sort only image files into the sorted directory.
+Leave text and markdown files in place.

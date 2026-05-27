@@ -1,0 +1,2 @@
+Demo notes for fileorg.
+These text files should stay in the demo directory.
