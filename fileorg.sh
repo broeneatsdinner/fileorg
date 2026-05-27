@@ -535,10 +535,17 @@ main() {
 				printf 'Exiting.\n'
 				return
 				;;
-			1)
-				create_and_build_list
-				return
-				;;
+		1)
+			create_and_build_list
+			case $? in
+				0)
+					continue
+					;;
+				*)
+					return $?
+					;;
+			esac
+			;;
 			2)
 				view_existing_word_list
 				case $? in
