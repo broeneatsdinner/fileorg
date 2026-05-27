@@ -4,6 +4,8 @@
 
 It creates word-list files, builds a reviewed list of matching files from a selected word list, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
 
+fileorg is intentionally review-first: create a word list, inspect it, generate a matching-files list, review that list, then move files.
+
 ## Demo
 
 ![fileorg demo](demo/demo.gif)
@@ -32,6 +34,8 @@ The demo shows a complete review-first workflow:
 - macOS is the primary target. When available, `fileorg` sorts generated matches by Finder Date Added metadata, then falls back to file birth time or filename.
 
 ## Usage
+
+The menu-driven workflow is the primary interface. The direct flags below are available for targeted use.
 
 Run `fileorg.sh` from the directory you want to organize:
 
