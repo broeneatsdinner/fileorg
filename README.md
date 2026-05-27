@@ -4,6 +4,19 @@
 
 It creates word-list files, builds a reviewed list of matching files from a selected word list, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
 
+## Demo
+
+![fileorg demo](demo/demo.gif)
+
+Higher-quality video: [demo/demo.mp4](demo/demo.mp4)
+
+The demo shows a complete review-first workflow:
+
+- create a new word list from scratch
+- notice a missed extension and edit the list
+- generate a reviewed matching-files list
+- move only the matching files into a new subdirectory
+
 ## Files
 
 - `fileorg.sh` is the main organizer script.
