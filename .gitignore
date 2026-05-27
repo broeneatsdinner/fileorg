@@ -13,3 +13,4 @@ fileorg-matching-files*.txt
 fileorg-word-list*.txt
 !fileorg-word-list-images-extensions.txt
 !fileorg-word-list-movies-extensions.txt
+private/
