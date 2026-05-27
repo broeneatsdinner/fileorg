@@ -54,21 +54,48 @@ setopt local_options no_nomatch
 
 SCRIPT_DIR="${0:A:h}"
 SELECTOR_FILE="${SCRIPT_DIR}/selector-interactive.sh"
+STANDARDS_SHELL_DIR="${STANDARDS_SHELL_DIR:-$HOME/Documents/Git/standards/shell}"
 WORD_LIST_BASE="fileorg-word-list"
 MATCH_FILE_BASE="fileorg-matching-files"
 MATCH_FILE_EXT=".txt"
 MAIN_MENU_STATUS="Ready."
 MAIN_MENU_BODY=""
 
+if [[ -f "$STANDARDS_SHELL_DIR/colors.sh" ]]; then
+	source "$STANDARDS_SHELL_DIR/colors.sh" 2>/dev/null || true
+fi
+
+: "${ACID_BLUE:=}"
+: "${ACID_GREEN:=}"
+: "${WARNING:=}"
+: "${ERROR:=}"
+: "${RESET:=}"
+
+color_path() {
+	printf '%s%s%s' "$ACID_BLUE" "$1" "$RESET"
+}
+
+color_value() {
+	printf '%s%s%s' "$ACID_GREEN" "$1" "$RESET"
+}
+
+color_warning() {
+	printf '%s%s%s' "$WARNING" "$1" "$RESET"
+}
+
+color_error() {
+	printf '%s%s%s' "$ERROR" "$1" "$RESET"
+}
+
 if [[ ! -f "$SELECTOR_FILE" ]]; then
-	printf 'Error: selector-interactive.sh not found next to fileorg.sh: %s\n' "$SELECTOR_FILE" >&2
+	printf '%s selector-interactive.sh not found next to fileorg.sh: %s\n' "$(color_error "Error:")" "$(color_path "$SELECTOR_FILE")" >&2
 	exit 1
 fi
 
 source "$SELECTOR_FILE"
 
 handle_interrupt() {
-	printf '\nCancelled.\n' >&2
+	printf '\n%s\n' "$(color_warning "Cancelled.")" >&2
 	exit 130
 }
 
@@ -110,7 +137,7 @@ clear_main_menu_body() {
 show_main_menu_screen() {
 	printf '\033[H\033[2J'
 	printf '\n'
-	printf 'fileorg - current directory: %s\n' "$PWD"
+	printf 'fileorg - current directory: %s\n' "$(color_path "$PWD")"
 	printf 'Status: %s\n' "$MAIN_MENU_STATUS"
 	printf '\n'
 
@@ -179,7 +206,7 @@ select_from_files() {
 	printf '%s\n\n' "$prompt" >&2
 	keyboard_select "$@" || {
 		install_interrupt_trap
-		printf 'Cancelled.\n' >&2
+		printf '%s\n' "$(color_warning "Cancelled.")" >&2
 		return 130
 	}
 	install_interrupt_trap
@@ -198,23 +225,23 @@ create_word_list() {
 		read -r suffix
 
 		if is_cancel_choice "$suffix"; then
-			printf 'Cancelled.\n' >&2
+			printf '%s\n' "$(color_warning "Cancelled.")" >&2
 			return 130
 		fi
 
 		if [[ -z "$suffix" ]]; then
-			printf 'Word-list suffix cannot be blank.\n' >&2
+			printf '%s\n' "$(color_warning "Word-list suffix cannot be blank.")" >&2
 			continue
 		fi
 
 		if [[ "$suffix" == *[!A-Za-z0-9_-]* ]]; then
-			printf 'Use only letters, numbers, underscores, and hyphens.\n' >&2
+			printf '%s\n' "$(color_warning "Use only letters, numbers, underscores, and hyphens.")" >&2
 			continue
 		fi
 
 		word_list_file="${WORD_LIST_BASE}-${suffix}.txt"
 		if [[ -e "$word_list_file" ]]; then
-			printf 'That word-list file already exists: %s\n' "$word_list_file" >&2
+			printf '%s %s\n' "$(color_warning "That word-list file already exists:")" "$(color_path "$word_list_file")" >&2
 			continue
 		fi
 
@@ -226,7 +253,7 @@ create_word_list() {
 		read -r terms_line
 
 		if is_cancel_choice "$terms_line"; then
-			printf 'Cancelled.\n' >&2
+			printf '%s\n' "$(color_warning "Cancelled.")" >&2
 			return 130
 		fi
 
@@ -239,7 +266,7 @@ create_word_list() {
 		done
 
 		if (( ${#terms[@]} == 0 )); then
-			printf 'At least one search term is required.\n' >&2
+			printf '%s\n' "$(color_warning "At least one search term is required.")" >&2
 			continue
 		fi
 
@@ -247,7 +274,7 @@ create_word_list() {
 	done
 
 	printf '%s\n' "${terms[@]}" > "$word_list_file" || return 1
-	printf 'Created word-list file: %s\n' "$word_list_file" >&2
+	printf '%s word-list file: %s\n' "$(color_value "Created")" "$(color_path "$word_list_file")" >&2
 	printf '%s\n' "$word_list_file"
 }
 
@@ -257,8 +284,8 @@ select_existing_word_list() {
 	word_list_files=(${WORD_LIST_BASE}*.txt(N.))
 
 	if (( ${#word_list_files[@]} == 0 )); then
-		printf 'No %s*.txt files found in current directory: %s\n' "$WORD_LIST_BASE" "$PWD" >&2
-		printf 'Use option 1 to create a new word list first.\n' >&2
+		printf 'No %s*.txt files found in current directory: %s\n' "$(color_path "$WORD_LIST_BASE")" "$(color_path "$PWD")" >&2
+		printf '%s\n' "$(color_warning "Use option 1 to create a new word list first.")" >&2
 		return 1
 	fi
 
@@ -271,7 +298,7 @@ select_match_file() {
 	match_files=(${MATCH_FILE_BASE}*.txt(N.))
 
 	if (( ${#match_files[@]} == 0 )); then
-		printf 'Error: no %s*.txt file found in current directory: %s\n' "$MATCH_FILE_BASE" "$PWD" >&2
+		printf '%s no %s*.txt file found in current directory: %s\n' "$(color_error "Error:")" "$(color_path "$MATCH_FILE_BASE")" "$(color_path "$PWD")" >&2
 		return 1
 	fi
 
@@ -317,7 +344,7 @@ build_list() {
 	local matched_files
 
 	if [[ ! -f "$word_list_file" ]]; then
-		printf 'Error: selected word-list file not found: %s\n' "$word_list_file" >&2
+		printf '%s selected word-list file not found: %s\n' "$(color_error "Error:")" "$(color_path "$word_list_file")" >&2
 		return 1
 	fi
 
@@ -325,8 +352,8 @@ build_list() {
 	clean_word_list="$(mktemp -t fileorg-word-list.XXXXXX)" || return 1
 	grep -v '^[[:space:]]*$' "$word_list_file" > "$clean_word_list"
 
-	printf 'Using word-list file: %s\n' "$word_list_file"
-	printf 'Generating %s in: %s\n' "$out_file" "$PWD"
+	printf 'Using word-list file: %s\n' "$(color_path "$word_list_file")"
+	printf 'Generating %s in: %s\n' "$(color_path "$out_file")" "$(color_path "$PWD")"
 
 	files=(*(.N))
 	if (( ${#files[@]} == 0 )); then
@@ -341,7 +368,7 @@ build_list() {
 
 	rm -f -- "$clean_word_list"
 
-	printf 'Done. Review/edit %s before organizing files.\n' "$out_file"
+	printf '%s Review/edit %s before organizing files.\n' "$(color_value "Done.")" "$(color_path "$out_file")"
 }
 
 create_and_build_list() {
@@ -361,7 +388,7 @@ build_list_from_existing_word_list() {
 print_word_list() {
 	local word_list_file="$1"
 
-	printf 'Word-list file: %s\n' "$word_list_file"
+	printf 'Word-list file: %s\n' "$(color_path "$word_list_file")"
 	awk '{ printf "%6d  %s\n", NR, $0 }' "$word_list_file"
 }
 
@@ -381,7 +408,7 @@ edit_existing_word_list() {
 	editor="${VISUAL:-${EDITOR:-/usr/bin/nano}}"
 	editor_cmd=("${(@z)editor}")
 
-	printf 'Editing word-list file: %s\n' "$word_list_file"
+	printf 'Editing word-list file: %s\n' "$(color_path "$word_list_file")"
 	"${editor_cmd[@]}" "$word_list_file" || return $?
 	print_word_list "$word_list_file"
 }
@@ -394,28 +421,28 @@ prompt_for_destination_dir() {
 		read -r dest_dir
 
 		if is_cancel_choice "$dest_dir"; then
-			printf 'Cancelled.\n' >&2
+			printf '%s\n' "$(color_warning "Cancelled.")" >&2
 			return 130
 		fi
 
 		if [[ -z "$dest_dir" ]]; then
-			printf 'Destination name cannot be blank.\n' >&2
+			printf '%s\n' "$(color_warning "Destination name cannot be blank.")" >&2
 			continue
 		fi
 
 		if [[ "$dest_dir" == "." || "$dest_dir" == ".." ]]; then
-			printf 'Please choose a real subdirectory name.\n' >&2
+			printf '%s\n' "$(color_warning "Please choose a real subdirectory name.")" >&2
 			continue
 		fi
 
 		if [[ "$dest_dir" == /* ]]; then
-			printf 'Please enter a relative subdirectory name, not an absolute path.\n' >&2
+			printf '%s\n' "$(color_warning "Please enter a relative subdirectory name, not an absolute path.")" >&2
 			continue
 		fi
 
 		if [[ -e "$dest_dir" ]]; then
-			printf 'That path already exists: %s\n' "$dest_dir" >&2
-			printf 'Choose another destination name.\n' >&2
+			printf '%s %s\n' "$(color_warning "That path already exists:")" "$(color_path "$dest_dir")" >&2
+			printf '%s\n' "$(color_warning "Choose another destination name.")" >&2
 			continue
 		fi
 
@@ -432,17 +459,17 @@ organize_files() {
 	local target_path
 
 	match_file="$(select_match_file)" || return $?
-	printf 'Using matching file: %s\n' "$match_file"
+	printf 'Using matching file: %s\n' "$(color_path "$match_file")"
 
 	dest_dir="$(prompt_for_destination_dir)" || return $?
 
 	if (( ! force )); then
-		printf 'Running in dry-run mode against: %s\n' "$match_file"
-		printf 'Would create destination directory: %s\n' "$dest_dir"
+		printf 'Running in %s mode against: %s\n' "$(color_warning "dry-run")" "$(color_path "$match_file")"
+		printf 'Would create destination directory: %s\n' "$(color_path "$dest_dir")"
 	else
 		mkdir -p -- "$dest_dir" || return 1
 		[[ -d "$dest_dir" ]] || return 1
-		printf 'Created destination directory: %s\n' "$dest_dir"
+		printf '%s destination directory: %s\n' "$(color_value "Created")" "$(color_path "$dest_dir")"
 	fi
 
 	while IFS= read -r file; do
@@ -453,20 +480,20 @@ organize_files() {
 
 		if [[ -e "$target_path" ]]; then
 			if (( ! force )); then
-				printf 'Would skip (target exists): %s -> %s\n' "$file" "$target_path"
+				printf 'Would skip (target exists): %s -> %s\n' "$(color_path "$file")" "$(color_path "$target_path")"
 			else
-				printf 'Skipping (target exists): %s -> %s\n' "$file" "$target_path"
+				printf '%s %s -> %s\n' "$(color_warning "Skipping (target exists):")" "$(color_path "$file")" "$(color_path "$target_path")"
 			fi
 			continue
 		fi
 
 		if (( ! force )); then
-			printf 'Would move: %s -> %s/\n' "$file" "$dest_dir"
+			printf 'Would move: %s -> %s/\n' "$(color_path "$file")" "$(color_path "$dest_dir")"
 			continue
 		fi
 
 		mv -- "$file" "$dest_dir/" || return 1
-		printf 'Moved: %s -> %s/\n' "$file" "$dest_dir"
+		printf '%s %s -> %s/\n' "$(color_value "Moved:")" "$(color_path "$file")" "$(color_path "$dest_dir")"
 
 	done < "$match_file"
 }
@@ -484,7 +511,7 @@ show_menu() {
 	printf '1) Start a new word list from scratch\n'
 	printf '2) View an existing word list\n'
 	printf '3) Edit an existing word list\n'
-	printf '4) Generate a new %s*.txt from an existing word list\n' "$MATCH_FILE_BASE"
+	printf '4) Generate a new %s*.txt from an existing word list\n' "$(color_path "$MATCH_FILE_BASE")"
 	if (( word_list_count == 1 )); then
 		printf '     1 word list found:\n'
 	elif (( word_list_count == 0 )); then
@@ -496,10 +523,10 @@ show_menu() {
 		printf '       [none]\n'
 	else
 		for word_list_file in "${word_list_files[@]}"; do
-			printf '       %s\n' "$word_list_file"
+			printf '       %s\n' "$(color_path "$word_list_file")"
 		done
 	fi
-	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$MATCH_FILE_BASE"
+	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
 	printf '6) Quit\n'
 	printf '\n'
 	printf 'Choose an option: '
@@ -595,7 +622,7 @@ main() {
 
 				case "$choice" in
 					q|Q|$'\e')
-						printf 'Cancelled.\n' >&2
+						printf '%s\n' "$(color_warning "Cancelled.")" >&2
 						return 130
 						;;
 					force)
@@ -605,7 +632,7 @@ main() {
 						force=0
 						;;
 					*)
-						printf 'Invalid choice.\n' >&2
+						printf '%s\n' "$(color_error "Invalid choice.")" >&2
 						return 1
 						;;
 				esac
@@ -620,7 +647,7 @@ main() {
 				return
 				;;
 			*)
-				printf 'Invalid choice.\n'
+				printf '%s\n' "$(color_error "Invalid choice.")"
 				;;
 		esac
 	done
