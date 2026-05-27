@@ -57,6 +57,8 @@ SELECTOR_FILE="${SCRIPT_DIR}/selector-interactive.sh"
 WORD_LIST_BASE="fileorg-word-list"
 MATCH_FILE_BASE="fileorg-matching-files"
 MATCH_FILE_EXT=".txt"
+MAIN_MENU_STATUS="Ready."
+MAIN_MENU_BODY=""
 
 if [[ ! -f "$SELECTOR_FILE" ]]; then
 	printf 'Error: selector-interactive.sh not found next to fileorg.sh: %s\n' "$SELECTOR_FILE" >&2
@@ -91,6 +93,30 @@ Usage:
 	fileorg -h
 	fileorg --help
 EOF
+}
+
+set_main_menu_status() {
+	MAIN_MENU_STATUS="$1"
+}
+
+set_main_menu_body() {
+	MAIN_MENU_BODY="$1"
+}
+
+clear_main_menu_body() {
+	MAIN_MENU_BODY=""
+}
+
+show_main_menu_screen() {
+	printf '\033[H\033[2J'
+	printf '\n'
+	printf 'fileorg - current directory: %s\n' "$PWD"
+	printf 'Status: %s\n' "$MAIN_MENU_STATUS"
+	printf '\n'
+
+	if [[ -n "$MAIN_MENU_BODY" ]]; then
+		printf '%s\n\n' "$MAIN_MENU_BODY"
+	fi
 }
 
 next_numbered_file() {
@@ -450,12 +476,11 @@ show_menu() {
 	local word_list_file
 	local word_list_count
 
+	show_main_menu_screen
+
 	word_list_files=(${WORD_LIST_BASE}*.txt(N.))
 	word_list_count=${#word_list_files[@]}
 
-	printf '\n'
-	printf 'fileorg - current directory: %s\n' "$PWD"
-	printf '\n'
 	printf '1) Start a new word list from scratch\n'
 	printf '2) View an existing word list\n'
 	printf '3) Edit an existing word list\n'
@@ -485,6 +510,9 @@ main() {
 	local arg2="${2:-}"
 	local choice
 	local force=0
+	local created_word_list
+	local word_list_output
+	local match_output
 
 	install_interrupt_trap
 
@@ -535,49 +563,31 @@ main() {
 				printf 'Exiting.\n'
 				return
 				;;
-		1)
-			create_word_list
-			case $? in
-				0)
-					continue
-					;;
-				*)
-					return $?
-					;;
-			esac
-			;;
+			1)
+				created_word_list="$(create_word_list)" || return $?
+				set_main_menu_status "Created word list ${created_word_list}."
+				set_main_menu_body "Created word-list file: ${created_word_list}"
+				continue
+				;;
 			2)
-				view_existing_word_list
-				case $? in
-					0)
-						;;
-					*)
-						return $?
-						;;
-				esac
+				word_list_output="$(view_existing_word_list)" || return $?
+				word_list_name="${word_list_output%%$'\n'*}"
+				word_list_name="${word_list_name#Word-list file: }"
+				set_main_menu_status "Viewed word list ${word_list_name}."
+				set_main_menu_body "$word_list_output"
 				continue
 				;;
 			3)
-				edit_existing_word_list
-				case $? in
-					0)
-						;;
-					*)
-						return $?
-						;;
-				esac
+				word_list_output="$(edit_existing_word_list)" || return $?
+				set_main_menu_status "Edited word list."
+				set_main_menu_body "$word_list_output"
 				continue
 				;;
 			4)
-				build_list_from_existing_word_list
-				case $? in
-					0)
-						continue
-						;;
-					*)
-						return $?
-						;;
-				esac
+				match_output="$(build_list_from_existing_word_list)" || return $?
+				set_main_menu_status "Generated matching-files list."
+				set_main_menu_body "$match_output"
+				continue
 				;;
 			5)
 				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
@@ -601,6 +611,8 @@ main() {
 				esac
 
 				organize_files "$force"
+				set_main_menu_status "Organizer completed."
+				clear_main_menu_body
 				return
 				;;
 			6)
