@@ -35,9 +35,30 @@ function select_option {
 		trap - INT
 		return 130
 	}
+	selector_action_matches() {
+		local key="$1"
+		local action_keys="${SELECTOR_ACTION_KEYS:-}"
+		local action_key
+		local action_upper
+		local i
+
+		i=0
+		while [ $i -lt ${#action_keys} ]; do
+			action_key="${action_keys:$i:1}"
+			action_upper="$(printf '%s' "$action_key" | tr '[:lower:]' '[:upper:]')"
+			if [[ "$key" == "$action_key" || "$key" == "$action_upper" ]]; then
+				printf '%s\n' "$action_key"
+				return 0
+			fi
+			((i++))
+		done
+
+		return 1
+	}
 	key_input() {
 		local key
 		local rest
+		local action_key
 
 		if [[ -n "${ZSH_VERSION:-}" ]]; then
 			IFS= read -r -s -k 1 key </dev/tty
@@ -55,6 +76,7 @@ function select_option {
 		if [[ "$key" == "q" || "$key" == "Q" ]]; then printf '%s\n' cancel; fi
 		if [[ "$key" == "$ESC" ]]; then printf '%s\n' cancel; fi
 		if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then printf '%s\n' enter; fi
+		if action_key="$(selector_action_matches "$key")"; then printf 'action:%s\n' "$action_key"; fi
 	}
 
 	# initially print empty new lines (scroll down if at bottom of screen)
@@ -64,8 +86,10 @@ function select_option {
 	trap selector_interrupt INT
 	cursor_blink_off
 
+	selector_action=""
 	local option_count=$#
 	local selected=0
+	local key_action
 	while true; do
 		# Redraw the reserved option lines without asking the terminal for its
 		# cursor position. ESC[6n responses can leak visibly in real terminals.
@@ -84,10 +108,15 @@ function select_option {
 		done
 
 		# user key control
-		case "$(key_input)" in
+		key_action="$(key_input)"
+		case "$key_action" in
 			enter) break;;
 			cancel)
 				selected=130
+				break
+				;;
+			action:*)
+				selector_action="${key_action#action:}"
 				break
 				;;
 			up)    ((selected--));
@@ -118,6 +147,24 @@ function select_opt {
 	select_option "$@" 1>&2
 	local result=$?
 	printf '%s\n' "$result"
+	return $result
+}
+
+function select_opt_with_actions {
+	local action_keys="$1"
+	shift
+	local result
+	local selected_action
+
+	SELECTOR_ACTION_KEYS="$action_keys" select_option "$@" 1>&2
+	result=$?
+	selected_action="${selector_action:-}"
+	if [[ -n "$selected_action" ]]; then
+		printf '%s:%s\n' "$selected_action" "$result"
+		return 0
+	fi
+
+	printf 'select:%s\n' "$result"
 	return $result
 }
 
@@ -153,6 +200,40 @@ keyboard_select()
 		selected_index=$selected
 	fi
 
+	keyboard_select_response="${options[$selected_index]}"
+	return 0
+}
+
+keyboard_select_with_actions()
+{
+	local action_keys="$1"
+	shift
+
+	local options=("$@")
+	local selected
+	local selected_action
+	local selected_index
+	local selected_status
+
+	keyboard_select_action=""
+	keyboard_select_response=""
+
+	selected="$(select_opt_with_actions "$action_keys" "${options[@]}")"
+	selected_status=$?
+	if [[ $selected_status -eq 130 ]]; then
+		return 130
+	fi
+
+	selected_action="${selected%%:*}"
+	selected="${selected#*:}"
+
+	if [[ -n "${ZSH_VERSION:-}" ]]; then
+		selected_index=$((selected + 1))
+	else
+		selected_index=$selected
+	fi
+
+	keyboard_select_action="$selected_action"
 	keyboard_select_response="${options[$selected_index]}"
 	return 0
 }

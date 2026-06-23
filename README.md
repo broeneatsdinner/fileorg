@@ -83,6 +83,8 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-list
    ```
 
+   While the word-list selector is open, press `v` to preview the highlighted word list or `o` to open it in your editor. Press Enter when the highlighted file is the one you want to use.
+
 3. Generate a matching-files list.
 
    Choose `Generate a new fileorg-matching-files*.txt from an existing word list`, or run:
@@ -113,6 +115,8 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-matches
    ```
 
+   Matching-files selectors also support `v` to preview the highlighted list and `o` to open it in your editor before choosing it with Enter.
+
 5. Run the organizer in dry-run mode.
 
    Dry-run mode is the safe default. It prints the destination directory it would create and each file it would move, but it does not create directories or move files.
@@ -142,6 +146,8 @@ You can also run specific modes directly:
 
 - Use Up and Down arrows to move through options.
 - Press Enter to choose the highlighted option.
+- Press `v` to view the highlighted file when choosing a word-list or matching-files list.
+- Press `o` to open the highlighted file in your editor when choosing a word-list or matching-files list.
 - Press `q`, `Q`, or Escape to cancel selector menus.
 - Press Ctrl+C to interrupt and cancel the current operation.
 

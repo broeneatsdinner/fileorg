@@ -215,6 +215,42 @@ select_from_files() {
 	printf '%s\n' "$keyboard_select_response"
 }
 
+select_from_files_with_actions() {
+	local prompt="$1"
+	local view_func="$2"
+	shift 2
+	local selected_file
+
+	while true; do
+		printf '%s\n' "$prompt" >&2
+		printf 'Enter selects. v views. o opens in editor. q, Q, or Escape cancels.\n\n' >&2
+		keyboard_select_with_actions "vo" "$@" || {
+			install_interrupt_trap
+			printf '%s\n' "$(color_warning "Cancelled.")" >&2
+			return 130
+		}
+		install_interrupt_trap
+
+		selected_file="$keyboard_select_response"
+		case "$keyboard_select_action" in
+			select)
+				printf '%s\n' "$selected_file"
+				return 0
+				;;
+			v)
+				printf '\n' >&2
+				"$view_func" "$selected_file" >&2
+				printf '\n' >&2
+				;;
+			o)
+				printf '\nOpening in editor: %s\n' "$(color_path "$selected_file")" >&2
+				edit_text_file "$selected_file" >&2 || return $?
+				printf '\n' >&2
+				;;
+		esac
+	done
+}
+
 create_word_list() {
 	local suffix
 	local terms_line
@@ -291,7 +327,7 @@ select_existing_word_list() {
 		return 1
 	fi
 
-	select_from_files "Choose word list to use:" "${word_list_files[@]}"
+	select_from_files_with_actions "Choose word list to use:" print_word_list "${word_list_files[@]}"
 }
 
 select_match_file() {
@@ -305,7 +341,7 @@ select_match_file() {
 		return 1
 	fi
 
-	select_from_files "$prompt" "${match_files[@]}"
+	select_from_files_with_actions "$prompt" print_match_file "${match_files[@]}"
 }
 
 date_added_sort_key() {
