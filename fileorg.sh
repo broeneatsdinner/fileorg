@@ -223,7 +223,7 @@ select_from_files_with_actions() {
 
 	while true; do
 		printf '%s\n' "$prompt" >&2
-		printf 'Enter selects. v views. o opens in editor. Left Arrow, q, Q, or Escape cancels.\n\n' >&2
+		printf 'Enter selects. (v) views. (o) opens in editor. Use Left Arrow to go back.\n\n' >&2
 		keyboard_select_with_actions "vo" "$@" || {
 			install_interrupt_trap
 			printf '%s\n' "$(color_warning "Cancelled.")" >&2
