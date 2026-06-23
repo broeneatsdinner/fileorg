@@ -523,12 +523,14 @@ prompt_for_destination_dir() {
 
 organize_files() {
 	local force="$1"
-	local match_file
+	local match_file="${2:-}"
 	local file
 	local dest_dir
 	local target_path
 
-	match_file="$(select_match_file)" || return $?
+	if [[ -z "$match_file" ]]; then
+		match_file="$(select_match_file)" || return $?
+	fi
 	printf 'Using matching file: %s\n' "$(color_path "$match_file")"
 
 	dest_dir="$(prompt_for_destination_dir)" || return $?
@@ -568,6 +570,30 @@ organize_files() {
 	done < "$match_file"
 }
 
+prompt_for_organize_mode() {
+	local choice
+
+	printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: ' >&2
+	read -r choice
+
+	case "$choice" in
+		q|Q|$'\e')
+			printf '%s\n' "$(color_warning "Cancelled.")" >&2
+			return 130
+			;;
+		force)
+			printf '1\n'
+			;;
+		dry-run|'')
+			printf '0\n'
+			;;
+		*)
+			printf '%s\n' "$(color_error "Invalid choice.")" >&2
+			return 1
+			;;
+	esac
+}
+
 show_menu() {
 	local word_list_files
 	local word_list_file
@@ -595,9 +621,8 @@ show_menu() {
 			printf '       %s\n' "$(color_path "$word_list_file")"
 		done
 	fi
-	printf '4) Choose an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '6) Quit\n'
+	printf '4) Choose a %s*.txt file to view, edit, or move files\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '5) Quit\n'
 	printf '\n'
 	printf 'Choose an option: '
 }
@@ -610,7 +635,7 @@ main() {
 	local created_word_list
 	local word_list_name
 	local word_list_output
-	local match_file_name
+	local match_file
 	local match_output
 	local action_status
 
@@ -710,7 +735,7 @@ main() {
 				continue
 				;;
 			4)
-				match_output="$(view_existing_match_file)"
+				match_file="$(select_match_file "Choose matching-files list to view, edit, or move files:")"
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -720,34 +745,19 @@ main() {
 					fi
 					return $action_status
 				fi
-				match_file_name="${match_output%%$'\n'*}"
-				match_file_name="${match_file_name#Matching-files list: }"
-				set_main_menu_status "Selected matching-files list ${match_file_name}."
-				set_main_menu_body "$match_output"
-				continue
-				;;
-			5)
-				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
-				read -r choice
 
-				case "$choice" in
-					q|Q|$'\e')
-						printf '%s\n' "$(color_warning "Cancelled.")" >&2
-						return 130
-						;;
-					force)
-						force=1
-						;;
-					dry-run|'')
-						force=0
-						;;
-					*)
-						printf '%s\n' "$(color_error "Invalid choice.")" >&2
-						return 1
-						;;
-				esac
+				force="$(prompt_for_organize_mode)"
+				action_status=$?
+				if (( action_status != 0 )); then
+					if (( action_status == 130 )); then
+						set_main_menu_status "Cancelled."
+						clear_main_menu_body
+						continue
+					fi
+					return $action_status
+				fi
 
-				organize_files "$force"
+				organize_files "$force" "$match_file"
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -761,7 +771,7 @@ main() {
 				clear_main_menu_body
 				return
 				;;
-			6)
+			5)
 				printf 'Exiting.\n'
 				return
 				;;

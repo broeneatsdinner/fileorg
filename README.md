@@ -97,9 +97,9 @@ You can also run specific modes directly:
 
    Existing matching-files lists are preserved by adding a number, such as `fileorg-matching-files-images-2.txt`.
 
-4. Choose a matching-files list.
+4. Choose a matching-files list to view, edit, or move files.
 
-   Choose `Choose an existing fileorg-matching-files*.txt` from the main menu, or run:
+   Choose `Choose a fileorg-matching-files*.txt file to view, edit, or move files` from the main menu, or run:
 
    ```sh
    /path/to/fileorg.sh --view-matches
@@ -115,13 +115,13 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-matches
    ```
 
-   Matching-files selectors also support `v` to preview the highlighted list and `o` to open it in your editor before choosing it with Enter. Press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
+   Matching-files selectors support `v` to preview the highlighted list and `o` to open it in your editor. Press Enter to choose the highlighted list for the organize workflow, or press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
 
 5. Run the organizer in dry-run mode.
 
-   Dry-run mode is the safe default. It prints the destination directory it would create and each file it would move, but it does not create directories or move files.
+   After you choose a matching-files list from the main menu, choose `dry-run` or press Enter to accept the default. Then enter the destination subdirectory. Dry-run mode prints the destination directory it would create and each file it would move, but it does not create directories or move files.
 
-   From the menu, choose the organizer option and accept the default `dry-run` choice, or run:
+   You can also run:
 
    ```sh
    /path/to/fileorg.sh --organize
@@ -132,7 +132,7 @@ You can also run specific modes directly:
 
    Only use force mode after reviewing the dry-run output.
 
-   From the menu, choose the organizer option and type `force`, or run:
+   After you choose a matching-files list from the main menu, type `force`, then enter the destination subdirectory. You can also run:
 
    ```sh
    /path/to/fileorg.sh --organize --force
