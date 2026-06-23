@@ -65,15 +65,16 @@ You can also run specific modes directly:
 
    Choose `Start a new word list from scratch` from the main menu. Enter a suffix such as `images`, then enter comma-separated search terms such as `.jpg, .png, .heic`.
 
-   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line. After that, return to the main menu and choose existing lists when you are ready to review, edit, or build from them.
+   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line. After that, return to the main menu and choose existing lists when you are ready to review, edit, or build matching-files lists from them.
 
-2. Choose an existing word list.
+2. Choose an existing word list to view, edit, or build matching-files.
 
-   Choose `Choose an existing word list` from the main menu, or run:
+   Choose `Choose an existing word list to view, edit, or build matching-files` from the main menu, or run:
 
    ```sh
    /path/to/fileorg.sh --view-list
    /path/to/fileorg.sh --edit-list
+   /path/to/fileorg.sh --build-list
    ```
 
    Editing uses `VISUAL` first, then `EDITOR`, then `/usr/bin/nano`:
@@ -83,11 +84,11 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-list
    ```
 
-   While the word-list selector is open, press `v` to preview the highlighted word list or `o` to open it in your editor. Press Enter to select and show the highlighted file. Press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
+   While the word-list selector is open, press `v` to preview the highlighted word list or `o` to open it in your editor. Press Enter to generate a new matching-files list from the highlighted word list. Press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
 
 3. Generate a matching-files list.
 
-   Choose `Generate a new fileorg-matching-files*.txt from an existing word list`, or run:
+   Select a word list with Enter from the main menu word-list selector, or run:
 
    ```sh
    /path/to/fileorg.sh --build-list

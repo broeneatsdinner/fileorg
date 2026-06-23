@@ -31,7 +31,8 @@
 # Workflow:
 #	1. Create a new word list from scratch or maintain fileorg-word-list*.txt
 #	   files with one search string per line
-#	2. Choose existing word lists selected with selector-interactive.sh
+#	2. Choose existing word lists selected with selector-interactive.sh to
+#	   view, edit, or generate matching-files lists
 #	3. Generate a suffix-aware fileorg-matching-files*.txt list from an
 #	   existing word list selected with selector-interactive.sh
 #	4. Match files in the current directory using the selected word list
@@ -388,6 +389,7 @@ build_list() {
 	local files
 	local file
 	local candidate_files
+	local matched_output
 	local matched_files
 
 	if [[ ! -f "$word_list_file" ]]; then
@@ -412,7 +414,8 @@ build_list() {
 	if (( ${#candidate_files[@]} == 0 )); then
 		: > "$out_file"
 	else
-		matched_files=("${(@f)$(printf '%s\n' "${candidate_files[@]}" | grep -iFf "$clean_word_list")}")
+		matched_output=$(printf '%s\n' "${candidate_files[@]}" | grep -iFf "$clean_word_list")
+		matched_files=("${(@f)matched_output}")
 		if (( ${#matched_files[@]} == 1 )) && [[ -z "${matched_files[1]}" ]]; then
 			matched_files=()
 		fi
@@ -612,15 +615,19 @@ show_menu() {
 	local word_list_files
 	local word_list_file
 	local word_list_count
+	local match_files
+	local match_file
+	local match_file_count
 
 	show_main_menu_screen
 
 	word_list_files=(${WORD_LIST_BASE}*.txt(N.))
 	word_list_count=${#word_list_files[@]}
+	match_files=(${MATCH_FILE_BASE}*.txt(N.))
+	match_file_count=${#match_files[@]}
 
 	printf '1) Start a new word list from scratch\n'
-	printf '2) Choose an existing word list\n'
-	printf '3) Generate a new %s*.txt from an existing word list\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '2) Choose an existing word list to view, edit, or build matching-files\n'
 	if (( word_list_count == 1 )); then
 		printf '     1 word list found:\n'
 	elif (( word_list_count == 0 )); then
@@ -635,8 +642,22 @@ show_menu() {
 			printf '       %s\n' "$(color_path "$word_list_file")"
 		done
 	fi
-	printf '4) Choose a %s*.txt file to view, edit, or move files\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '5) Quit\n'
+	printf '3) Choose a %s*.txt file to view, edit, or move files\n' "$(color_path "$MATCH_FILE_BASE")"
+	if (( match_file_count == 1 )); then
+		printf '     1 matching-files list found:\n'
+	elif (( match_file_count == 0 )); then
+		printf '     0 matching-files lists found:\n'
+	else
+		printf '     %d matching-files lists found:\n' "$match_file_count"
+	fi
+	if (( match_file_count == 0 )); then
+		printf '       [none]\n'
+	else
+		for match_file in "${match_files[@]}"; do
+			printf '       %s\n' "$(color_path "$match_file")"
+		done
+	fi
+	printf '4) Quit\n'
 	printf '\n'
 	printf 'Choose an option: '
 }
@@ -647,8 +668,7 @@ main() {
 	local choice
 	local force=0
 	local created_word_list
-	local word_list_name
-	local word_list_output
+	local word_list_file
 	local match_file
 	local match_output
 	local action_status
@@ -717,7 +737,7 @@ main() {
 				continue
 				;;
 			2)
-				word_list_output="$(view_existing_word_list)"
+				word_list_file=$(select_existing_word_list)
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -727,14 +747,8 @@ main() {
 					fi
 					return $action_status
 				fi
-				word_list_name="${word_list_output%%$'\n'*}"
-				word_list_name="${word_list_name#Word-list file: }"
-				set_main_menu_status "Selected word list ${word_list_name}."
-				set_main_menu_body "$word_list_output"
-				continue
-				;;
-			3)
-				match_output="$(build_list_from_existing_word_list)"
+
+				match_output=$(build_list "$word_list_file")
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -748,8 +762,8 @@ main() {
 				set_main_menu_body "$match_output"
 				continue
 				;;
-			4)
-				match_file="$(select_match_file "Choose matching-files list to view, edit, or move files:")"
+			3)
+				match_file=$(select_match_file 'Choose matching-files list to view, edit, or move files:')
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -760,7 +774,7 @@ main() {
 					return $action_status
 				fi
 
-				force="$(prompt_for_organize_mode)"
+				force=$(prompt_for_organize_mode)
 				action_status=$?
 				if (( action_status != 0 )); then
 					if (( action_status == 130 )); then
@@ -791,7 +805,7 @@ main() {
 				clear_main_menu_body
 				return
 				;;
-			5)
+			4)
 				printf 'Exiting.\n'
 				return
 				;;
