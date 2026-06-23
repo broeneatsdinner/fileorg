@@ -4,7 +4,7 @@
 
 It creates word-list files, builds a reviewed list of matching files from a selected word list, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
 
-fileorg is intentionally review-first: create a word list, inspect it, generate a matching-files list, review and edit that list inside the app, then move files.
+fileorg is intentionally review-first: create a word list, choose existing lists through file selectors that can preview or edit in place, generate a matching-files list, review that list, then move files.
 
 ## Demo
 
@@ -65,11 +65,11 @@ You can also run specific modes directly:
 
    Choose `Start a new word list from scratch` from the main menu. Enter a suffix such as `images`, then enter comma-separated search terms such as `.jpg, .png, .heic`.
 
-   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line. After that, return to the main menu and use the view, edit, or build options when you are ready.
+   This creates a file named like `fileorg-word-list-images.txt`, with one search term per line. After that, return to the main menu and choose existing lists when you are ready to review, edit, or build from them.
 
-2. View or edit an existing word list.
+2. Choose an existing word list.
 
-   Use the view or edit options from the main menu, or run:
+   Choose `Choose an existing word list` from the main menu, or run:
 
    ```sh
    /path/to/fileorg.sh --view-list
@@ -83,7 +83,7 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-list
    ```
 
-   While the word-list selector is open, press `v` to preview the highlighted word list or `o` to open it in your editor. Press Enter when the highlighted file is the one you want to use.
+   While the word-list selector is open, press `v` to preview the highlighted word list or `o` to open it in your editor. Press Enter to select and show the highlighted file. Press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
 
 3. Generate a matching-files list.
 
@@ -97,9 +97,9 @@ You can also run specific modes directly:
 
    Existing matching-files lists are preserved by adding a number, such as `fileorg-matching-files-images-2.txt`.
 
-4. Review and edit the matching-files list.
+4. Choose a matching-files list.
 
-   Use the view or edit matching-files options from the main menu, or run:
+   Choose `Choose an existing fileorg-matching-files*.txt` from the main menu, or run:
 
    ```sh
    /path/to/fileorg.sh --view-matches
@@ -115,7 +115,7 @@ You can also run specific modes directly:
    EDITOR=vim /path/to/fileorg.sh --edit-matches
    ```
 
-   Matching-files selectors also support `v` to preview the highlighted list and `o` to open it in your editor before choosing it with Enter.
+   Matching-files selectors also support `v` to preview the highlighted list and `o` to open it in your editor before choosing it with Enter. Press Left Arrow, `q`, `Q`, or Escape to return to the main menu.
 
 5. Run the organizer in dry-run mode.
 
@@ -148,7 +148,7 @@ You can also run specific modes directly:
 - Press Enter to choose the highlighted option.
 - Press `v` to view the highlighted file when choosing a word-list or matching-files list.
 - Press `o` to open the highlighted file in your editor when choosing a word-list or matching-files list.
-- Press `q`, `Q`, or Escape to cancel selector menus.
+- Press Left Arrow, `q`, `Q`, or Escape to cancel selector menus.
 - Press Ctrl+C to interrupt and cancel the current operation.
 
 For text prompts in `fileorg.sh`, `q`, `Q`, or Escape cancels where cancellation is accepted. Ctrl+C cancels the script and exits with an interrupt status.

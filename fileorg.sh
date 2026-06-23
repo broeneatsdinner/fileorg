@@ -31,13 +31,13 @@
 # Workflow:
 #	1. Create a new word list from scratch or maintain fileorg-word-list*.txt
 #	   files with one search string per line
-#	2. View or edit existing word lists selected with selector-interactive.sh
+#	2. Choose existing word lists selected with selector-interactive.sh
 #	3. Generate a suffix-aware fileorg-matching-files*.txt list from an
 #	   existing word list selected with selector-interactive.sh
 #	4. Match files in the current directory using the selected word list
 #	5. For this first version, order generated matches by macOS Date Added when
 #	   available, falling back to file birth time or filename
-#	6. View or edit generated matching files selected with selector-interactive.sh
+#	6. Choose generated matching files selected with selector-interactive.sh
 #	7. Run the organizer against a selector-chosen matching file
 #
 # Organizer safety behavior:
@@ -223,7 +223,7 @@ select_from_files_with_actions() {
 
 	while true; do
 		printf '%s\n' "$prompt" >&2
-		printf 'Enter selects. v views. o opens in editor. q, Q, or Escape cancels.\n\n' >&2
+		printf 'Enter selects. v views. o opens in editor. Left Arrow, q, Q, or Escape cancels.\n\n' >&2
 		keyboard_select_with_actions "vo" "$@" || {
 			install_interrupt_trap
 			printf '%s\n' "$(color_warning "Cancelled.")" >&2
@@ -579,9 +579,8 @@ show_menu() {
 	word_list_count=${#word_list_files[@]}
 
 	printf '1) Start a new word list from scratch\n'
-	printf '2) View an existing word list\n'
-	printf '3) Edit an existing word list\n'
-	printf '4) Generate a new %s*.txt from an existing word list\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '2) Choose an existing word list\n'
+	printf '3) Generate a new %s*.txt from an existing word list\n' "$(color_path "$MATCH_FILE_BASE")"
 	if (( word_list_count == 1 )); then
 		printf '     1 word list found:\n'
 	elif (( word_list_count == 0 )); then
@@ -596,10 +595,9 @@ show_menu() {
 			printf '       %s\n' "$(color_path "$word_list_file")"
 		done
 	fi
-	printf '5) View an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '6) Edit an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '7) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '8) Quit\n'
+	printf '4) Choose an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '6) Quit\n'
 	printf '\n'
 	printf 'Choose an option: '
 }
@@ -614,6 +612,7 @@ main() {
 	local word_list_output
 	local match_file_name
 	local match_output
+	local action_status
 
 	install_interrupt_trap
 
@@ -679,40 +678,55 @@ main() {
 				continue
 				;;
 			2)
-				word_list_output="$(view_existing_word_list)" || return $?
+				word_list_output="$(view_existing_word_list)"
+				action_status=$?
+				if (( action_status != 0 )); then
+					if (( action_status == 130 )); then
+						set_main_menu_status "Cancelled."
+						clear_main_menu_body
+						continue
+					fi
+					return $action_status
+				fi
 				word_list_name="${word_list_output%%$'\n'*}"
 				word_list_name="${word_list_name#Word-list file: }"
-				set_main_menu_status "Viewed word list ${word_list_name}."
+				set_main_menu_status "Selected word list ${word_list_name}."
 				set_main_menu_body "$word_list_output"
 				continue
 				;;
 			3)
-				word_list_output="$(edit_existing_word_list)" || return $?
-				set_main_menu_status "Edited word list."
-				set_main_menu_body "$word_list_output"
-				continue
-				;;
-			4)
-				match_output="$(build_list_from_existing_word_list)" || return $?
+				match_output="$(build_list_from_existing_word_list)"
+				action_status=$?
+				if (( action_status != 0 )); then
+					if (( action_status == 130 )); then
+						set_main_menu_status "Cancelled."
+						clear_main_menu_body
+						continue
+					fi
+					return $action_status
+				fi
 				set_main_menu_status "Generated matching-files list."
 				set_main_menu_body "$match_output"
 				continue
 				;;
-			5)
-				match_output="$(view_existing_match_file)" || return $?
+			4)
+				match_output="$(view_existing_match_file)"
+				action_status=$?
+				if (( action_status != 0 )); then
+					if (( action_status == 130 )); then
+						set_main_menu_status "Cancelled."
+						clear_main_menu_body
+						continue
+					fi
+					return $action_status
+				fi
 				match_file_name="${match_output%%$'\n'*}"
 				match_file_name="${match_file_name#Matching-files list: }"
-				set_main_menu_status "Viewed matching-files list ${match_file_name}."
+				set_main_menu_status "Selected matching-files list ${match_file_name}."
 				set_main_menu_body "$match_output"
 				continue
 				;;
-			6)
-				match_output="$(edit_existing_match_file)" || return $?
-				set_main_menu_status "Edited matching-files list."
-				set_main_menu_body "$match_output"
-				continue
-				;;
-			7)
+			5)
 				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
 				read -r choice
 
@@ -734,11 +748,20 @@ main() {
 				esac
 
 				organize_files "$force"
+				action_status=$?
+				if (( action_status != 0 )); then
+					if (( action_status == 130 )); then
+						set_main_menu_status "Cancelled."
+						clear_main_menu_body
+						continue
+					fi
+					return $action_status
+				fi
 				set_main_menu_status "Organizer completed."
 				clear_main_menu_body
 				return
 				;;
-			8)
+			6)
 				printf 'Exiting.\n'
 				return
 				;;

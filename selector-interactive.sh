@@ -73,6 +73,7 @@ function select_option {
 
 		if [[ "$key" == "${ESC}[A" ]]; then printf '%s\n' up; fi
 		if [[ "$key" == "${ESC}[B" ]]; then printf '%s\n' down; fi
+		if [[ "$key" == "${ESC}[D" ]]; then printf '%s\n' cancel; fi
 		if [[ "$key" == "q" || "$key" == "Q" ]]; then printf '%s\n' cancel; fi
 		if [[ "$key" == "$ESC" ]]; then printf '%s\n' cancel; fi
 		if [[ -z "$key" || "$key" == $'\n' || "$key" == $'\r' ]]; then printf '%s\n' enter; fi
