@@ -93,7 +93,7 @@ You can also run specific modes directly:
    /path/to/fileorg.sh --build-list
    ```
 
-   The script scans regular files in the current directory, matches them case-insensitively against the selected word list, and writes a reviewable file such as `fileorg-matching-files-images.txt`.
+   The script scans regular files in the current directory, matches them case-insensitively against the selected word list, and writes a reviewable file such as `fileorg-matching-files-images.txt`. fileorg control files named `fileorg-word-list*.txt` or `fileorg-matching-files*.txt` are excluded from generated matching-files lists.
 
    Existing matching-files lists are preserved by adding a number, such as `fileorg-matching-files-images-2.txt`.
 

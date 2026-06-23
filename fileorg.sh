@@ -375,11 +375,19 @@ print_date_added_ordered_files() {
 	done | sort -t '	' -k1,1 -k2,2 | cut -f2-
 }
 
+is_fileorg_control_file() {
+	local file="$1"
+
+	[[ "$file" == ${WORD_LIST_BASE}*.txt || "$file" == ${MATCH_FILE_BASE}*.txt ]]
+}
+
 build_list() {
 	local out_file
 	local word_list_file="$1"
 	local clean_word_list
 	local files
+	local file
+	local candidate_files
 	local matched_files
 
 	if [[ ! -f "$word_list_file" ]]; then
@@ -395,10 +403,16 @@ build_list() {
 	printf 'Generating %s in: %s\n' "$(color_path "$out_file")" "$(color_path "$PWD")"
 
 	files=(*(.N))
-	if (( ${#files[@]} == 0 )); then
+	candidate_files=()
+	for file in "${files[@]}"; do
+		is_fileorg_control_file "$file" && continue
+		candidate_files+=("$file")
+	done
+
+	if (( ${#candidate_files[@]} == 0 )); then
 		: > "$out_file"
 	else
-		matched_files=("${(@f)$(printf '%s\n' "${files[@]}" | grep -iFf "$clean_word_list")}")
+		matched_files=("${(@f)$(printf '%s\n' "${candidate_files[@]}" | grep -iFf "$clean_word_list")}")
 		if (( ${#matched_files[@]} == 1 )) && [[ -z "${matched_files[1]}" ]]; then
 			matched_files=()
 		fi
