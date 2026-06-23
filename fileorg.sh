@@ -757,6 +757,12 @@ main() {
 					return $action_status
 				fi
 
+				if (( force )); then
+					printf 'Running in %s mode\n' "$(color_value "force")"
+				else
+					printf 'Running in %s mode\n' "$(color_warning "dry-run")"
+				fi
+
 				organize_files "$force" "$match_file"
 				action_status=$?
 				if (( action_status != 0 )); then

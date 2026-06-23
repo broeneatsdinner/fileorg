@@ -119,7 +119,7 @@ You can also run specific modes directly:
 
 5. Run the organizer in dry-run mode.
 
-   After you choose a matching-files list from the main menu, choose `dry-run` or press Enter to accept the default. Then enter the destination subdirectory. Dry-run mode prints the destination directory it would create and each file it would move, but it does not create directories or move files.
+   After you choose a matching-files list from the main menu, choose `dry-run` or press Enter to accept the default. fileorg confirms `Running in dry-run mode`, then asks for the destination subdirectory. Dry-run mode prints the destination directory it would create and each file it would move, but it does not create directories or move files.
 
    You can also run:
 
@@ -132,7 +132,7 @@ You can also run specific modes directly:
 
    Only use force mode after reviewing the dry-run output.
 
-   After you choose a matching-files list from the main menu, type `force`, then enter the destination subdirectory. You can also run:
+   After you choose a matching-files list from the main menu, type `force`. fileorg confirms `Running in force mode`, then asks for the destination subdirectory. You can also run:
 
    ```sh
    /path/to/fileorg.sh --organize --force
