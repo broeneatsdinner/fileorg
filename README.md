@@ -4,7 +4,7 @@
 
 It creates word-list files, builds a reviewed list of matching files from a selected word list, then can move those files into a new subdirectory. The organizer defaults to dry-run mode so you can inspect the planned moves before anything changes.
 
-fileorg is intentionally review-first: create a word list, inspect it, generate a matching-files list, review that list, then move files.
+fileorg is intentionally review-first: create a word list, inspect it, generate a matching-files list, review and edit that list inside the app, then move files.
 
 ## Demo
 
@@ -52,6 +52,8 @@ You can also run specific modes directly:
 /path/to/fileorg.sh --view-list
 /path/to/fileorg.sh --edit-list
 /path/to/fileorg.sh --build-list
+/path/to/fileorg.sh --view-matches
+/path/to/fileorg.sh --edit-matches
 /path/to/fileorg.sh --organize
 /path/to/fileorg.sh --organize --force
 /path/to/fileorg.sh --dry-run
@@ -95,7 +97,21 @@ You can also run specific modes directly:
 
 4. Review and edit the matching-files list.
 
-   Open the generated `fileorg-matching-files*.txt` file before organizing. Remove anything you do not want moved. Blank lines are ignored, and lines that do not point to regular files are skipped.
+   Use the view or edit matching-files options from the main menu, or run:
+
+   ```sh
+   /path/to/fileorg.sh --view-matches
+   /path/to/fileorg.sh --edit-matches
+   ```
+
+   Remove anything you do not want moved before organizing. Blank lines are ignored, and lines that do not point to regular files are skipped.
+
+   Editing uses `VISUAL` first, then `EDITOR`, then `/usr/bin/nano`, just like word-list editing:
+
+   ```sh
+   VISUAL="code --wait" /path/to/fileorg.sh --edit-matches
+   EDITOR=vim /path/to/fileorg.sh --edit-matches
+   ```
 
 5. Run the organizer in dry-run mode.
 

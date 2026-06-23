@@ -37,7 +37,7 @@
 #	4. Match files in the current directory using the selected word list
 #	5. For this first version, order generated matches by macOS Date Added when
 #	   available, falling back to file birth time or filename
-#	6. Manually review/edit the generated matching file
+#	6. View or edit generated matching files selected with selector-interactive.sh
 #	7. Run the organizer against a selector-chosen matching file
 #
 # Organizer safety behavior:
@@ -114,6 +114,8 @@ Usage:
 	fileorg --view-list
 	fileorg --edit-list
 	fileorg --build-list
+	fileorg --view-matches
+	fileorg --edit-matches
 	fileorg --organize
 	fileorg --organize --force
 	fileorg --dry-run
@@ -294,6 +296,7 @@ select_existing_word_list() {
 
 select_match_file() {
 	local match_files
+	local prompt="${1:-Choose matching file to organize:}"
 
 	match_files=(${MATCH_FILE_BASE}*.txt(N.))
 
@@ -302,7 +305,7 @@ select_match_file() {
 		return 1
 	fi
 
-	select_from_files "Choose matching file to organize:" "${match_files[@]}"
+	select_from_files "$prompt" "${match_files[@]}"
 }
 
 date_added_sort_key() {
@@ -392,6 +395,24 @@ print_word_list() {
 	awk '{ printf "%6d  %s\n", NR, $0 }' "$word_list_file"
 }
 
+print_match_file() {
+	local match_file="$1"
+
+	printf 'Matching-files list: %s\n' "$(color_path "$match_file")"
+	awk '{ printf "%6d  %s\n", NR, $0 }' "$match_file"
+}
+
+edit_text_file() {
+	local file="$1"
+	local editor
+	local -a editor_cmd
+
+	editor="${VISUAL:-${EDITOR:-/usr/bin/nano}}"
+	editor_cmd=("${(@z)editor}")
+
+	"${editor_cmd[@]}" "$file"
+}
+
 view_existing_word_list() {
 	local word_list_file
 
@@ -401,16 +422,29 @@ view_existing_word_list() {
 
 edit_existing_word_list() {
 	local word_list_file
-	local editor
-	local -a editor_cmd
 
 	word_list_file="$(select_existing_word_list)" || return $?
-	editor="${VISUAL:-${EDITOR:-/usr/bin/nano}}"
-	editor_cmd=("${(@z)editor}")
 
 	printf 'Editing word-list file: %s\n' "$(color_path "$word_list_file")"
-	"${editor_cmd[@]}" "$word_list_file" || return $?
+	edit_text_file "$word_list_file" || return $?
 	print_word_list "$word_list_file"
+}
+
+view_existing_match_file() {
+	local match_file
+
+	match_file="$(select_match_file "Choose matching-files list to view:")" || return $?
+	print_match_file "$match_file"
+}
+
+edit_existing_match_file() {
+	local match_file
+
+	match_file="$(select_match_file "Choose matching-files list to edit:")" || return $?
+
+	printf 'Editing matching-files list: %s\n' "$(color_path "$match_file")"
+	edit_text_file "$match_file" || return $?
+	print_match_file "$match_file"
 }
 
 prompt_for_destination_dir() {
@@ -526,8 +560,10 @@ show_menu() {
 			printf '       %s\n' "$(color_path "$word_list_file")"
 		done
 	fi
-	printf '5) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
-	printf '6) Quit\n'
+	printf '5) View an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '6) Edit an existing %s*.txt\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '7) Choose a %s*.txt file to move files into a new subdirectory\n' "$(color_path "$MATCH_FILE_BASE")"
+	printf '8) Quit\n'
 	printf '\n'
 	printf 'Choose an option: '
 }
@@ -538,7 +574,9 @@ main() {
 	local choice
 	local force=0
 	local created_word_list
+	local word_list_name
 	local word_list_output
+	local match_file_name
 	local match_output
 
 	install_interrupt_trap
@@ -554,6 +592,14 @@ main() {
 			;;
 		--build-list)
 			build_list_from_existing_word_list
+			return
+			;;
+		--view-matches)
+			view_existing_match_file
+			return
+			;;
+		--edit-matches)
+			edit_existing_match_file
 			return
 			;;
 		--organize)
@@ -617,6 +663,20 @@ main() {
 				continue
 				;;
 			5)
+				match_output="$(view_existing_match_file)" || return $?
+				match_file_name="${match_output%%$'\n'*}"
+				match_file_name="${match_file_name#Matching-files list: }"
+				set_main_menu_status "Viewed matching-files list ${match_file_name}."
+				set_main_menu_body "$match_output"
+				continue
+				;;
+			6)
+				match_output="$(edit_existing_match_file)" || return $?
+				set_main_menu_status "Edited matching-files list."
+				set_main_menu_body "$match_output"
+				continue
+				;;
+			7)
 				printf 'Run organizer in dry-run mode or with force mode? [dry-run/force, default: dry-run]: '
 				read -r choice
 
@@ -642,7 +702,7 @@ main() {
 				clear_main_menu_body
 				return
 				;;
-			6)
+			8)
 				printf 'Exiting.\n'
 				return
 				;;
